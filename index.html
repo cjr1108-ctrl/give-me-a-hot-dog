@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    body { font-family: "Noto Sans TC", sans-serif; margin: 0; padding: 16px; background: #fafafa; color: #222; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tab { padding: 8px 20px; border: 1px solid #999; border-radius: 20px; background: #fff; cursor: pointer; font-size: 15px; }
+    .tab.active { background: #434343; color: #fff; border-color: #434343; }
+    table { border-collapse: collapse; width: 100%; max-width: 640px; background: #fff; }
+    th { background: #434343; color: #fff; padding: 8px; text-align: left; }
+    td { padding: 8px; border: 1px solid #ddd; }
+    tr.now td { outline: 3px solid #e69138; outline-offset: -3px; font-weight: bold; }
+    .stats { margin-top: 12px; font-size: 15px; }
+    .stats span { display: inline-block; margin-right: 16px; }
+    .note { color: #666; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>每日時間表</h1>
+  <div class="tabs">
+    <div class="tab" id="tab-weekday" onclick="show('weekday')">平日</div>
+    <div class="tab" id="tab-holiday" onclick="show('holiday')">假日</div>
+  </div>
+  <table>
+    <thead><tr><th>時間</th><th>活動</th><th>備註</th></tr></thead>
+    <tbody id="body"><tr><td colspan="3">載入中…</td></tr></tbody>
+  </table>
+  <div class="stats" id="stats"></div>
+  <p class="note">橘色框線代表現在的時段，每分鐘自動更新。</p>
+
+  <script>
+    let DATA = null;
+    let current = null;
+
+    google.script.run.withSuccessHandler(function (d) {
+      DATA = d;
+      const day = new Date().getDay();
+      show(day === 0 || day === 6 ? 'holiday' : 'weekday');
+      setInterval(render, 60000);
+    }).getScheduleData();
+
+    function show(type) { current = type; render(); }
+
+    function render() {
+      if (!DATA) return;
+      ['weekday', 'holiday'].forEach(function (t) {
+        document.getElementById('tab-' + t).className = 'tab' + (t === current ? ' active' : '');
+      });
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const slots = DATA[current];
+      let html = '';
+      let game = 0, study = 0;
+      slots.forEach(function (s) {
+        const isNow = nowMin >= s.start && nowMin < s.start + 30;
+        if (s.activity === '電動') game += 0.5;
+        if (s.activity === '讀書') study += 0.5;
+        html += '<tr class="' + (isNow ? 'now' : '') + '" style="background:' + s.color + '">' +
+                '<td>' + s.label + '</td><td>' + s.activity + '</td><td>' + s.note + '</td></tr>';
+      });
+      document.getElementById('body').innerHTML = html;
+      document.getElementById('stats').innerHTML =
+        '<span>電動：' + game + ' 小時</span><span>讀書：' + study + ' 小時</span>';
+    }
+  </script>
+</body>
+</html>
